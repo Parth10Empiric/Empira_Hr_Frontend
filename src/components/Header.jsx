@@ -1,0 +1,245 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Bell, Check, ChevronDown, Menu, Moon, Search, Sun } from 'lucide-react';
+import { useTheme } from '../theme/ThemeProvider.jsx';
+import { clearSession, getStoredUser } from '../services/storage';
+import logo from '../assets/logo.png';
+
+function cx(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
+
+function useOnClickOutside(refs, handler, enabled = true) {
+  useEffect(() => {
+    if (!enabled) return;
+    const onDown = (e) => {
+      const target = e.target;
+      if (!target) return;
+      const clickedInside = refs.some((r) => r.current && r.current.contains(target));
+      if (!clickedInside) handler();
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('touchstart', onDown, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+    };
+  }, [refs, handler, enabled]);
+}
+
+export default function Header({
+  onOpenMobileSidebar,
+  headerHeight,
+}) {
+  const { theme, toggleTheme, accent, setAccent, accents } = useTheme();
+  const user = getStoredUser();
+
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef(null);
+  const menuRef = useRef(null);
+
+  useOnClickOutside([btnRef, menuRef], () => setOpen(false), open);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setOpen(false);
+      if (e.altKey && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        const el = document.getElementById('global-search');
+        if (el && 'focus' in el) el.focus();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const accentSwatches = useMemo(() => {
+    const map = {
+      purple: 'bg-[hsl(270_91%_65%)]',
+      blue: 'bg-[hsl(217_91%_60%)]',
+      red: 'bg-[hsl(0_84%_60%)]',
+      green: 'bg-[hsl(142_71%_45%)]',
+      orange: 'bg-[hsl(25_95%_53%)]',
+    };
+    return accents.map((a) => ({ accent: a, className: map[a] ?? 'bg-accent' }));
+  }, [accents]);
+
+  return (
+    <header
+      className={cx(
+        'fixed top-0 z-30 w-full border-b border-slate-900/40',
+        'bg-[linear-gradient(90deg,rgba(88,28,135,0.95),rgba(67,56,202,0.92),rgba(30,41,59,0.92))]',
+        'backdrop-blur-xl'
+      )}
+      style={{ height: headerHeight }}
+    >
+      <div className="flex h-full w-full flex-row items-center justify-between gap-4 px-4 lg:px-6">
+        {/* Left cluster: hamburger (mobile) + brand (desktop) */}
+        <div className="flex shrink-0 items-center gap-3">
+          <button
+            type="button"
+            className="grid h-10 w-10 place-items-center rounded-xl text-white/80 hover:bg-white/10 hover:text-white lg:hidden"
+            onClick={onOpenMobileSidebar}
+            aria-label="Open sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+
+          <div className="hidden items-center gap-3 lg:flex">
+            <div className="flex items-center leading-none">
+              <img src={logo} alt="EMPIRA" className="h-20 -ml-5 w-auto object-contain" />
+            </div>
+            <div className="h-5 w-px bg-white/15 -ml-5" aria-hidden="true" />
+            <div className="max-w-[28ch] truncate  text-xs font-semibold uppercase tracking-wider text-white/70">
+              EMPIRIC INFOTECH LLP
+            </div>
+          </div>
+        </div>
+
+        {/* Search (flexible but constrained) */}
+        <div className="relative flex-1 max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" />
+          <input
+            id="global-search"
+            type="search"
+            placeholder="Search employees or actions..."
+            className={cx(
+              'h-10 w-full rounded-full border border-white/10 bg-black/25 pl-10 pr-16 text-sm outline-none',
+              'text-white/90 placeholder:text-white/55',
+              'focus:border-white/20 focus:ring-2 focus:ring-white/15'
+            )}
+          />
+          <div className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] font-medium text-white/70 sm:flex">
+            <span>Alt</span>
+            <span className="opacity-60">+</span>
+            <span>K</span>
+          </div>
+        </div>
+
+        {/* Right cluster: actions (never shrink) */}
+        <div className="flex items-center shrink-0 gap-3">
+          <button
+            type="button"
+            className="grid h-10 w-10 place-items-center rounded-xl text-white/75 hover:bg-white/10 hover:text-white"
+            aria-label="Notifications"
+          >
+            <Bell className="h-5 w-5" />
+          </button>
+
+          {/* Profile dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              ref={btnRef}
+              className={cx(
+                'flex h-10 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2.5',
+                'text-sm font-medium text-white/90',
+                'hover:bg-white/10',
+                'focus:outline-none focus:ring-2 focus:ring-white/15'
+              )}
+              onClick={() => setOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={open}
+            >
+              <div className="grid h-7 w-7 place-items-center rounded-full bg-emerald-500/20 ring-1 ring-emerald-400/25">
+                <span className="text-xs font-semibold text-emerald-100">PP</span>
+              </div>
+              <span className="hidden sm:block">Parth</span>
+              <ChevronDown className="h-4 w-4 text-white/70" />
+            </button>
+
+            {open && (
+              <div
+                ref={menuRef}
+                className={cx(
+                  'absolute right-0 z-50 mt-2 w-[320px] overflow-hidden rounded-2xl border shadow-xl',
+                  // Force fully opaque surface for readability
+                  theme === 'dark' ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
+                )}
+                role="menu"
+              >
+                <div className="p-3">
+                  <div className="rounded-xl border border-border/60 bg-background/40 p-3">
+                    <div className="text-sm font-semibold tracking-tight">Signed in</div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        {user?.work_email || user?.email || '—'}
+                      </div>
+                  </div>
+                </div>
+
+              <div className="px-3 pb-3">
+                <div className="rounded-xl border border-border/60 bg-background/40 p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Appearance
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleTheme}
+                      className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-2 py-1 text-xs font-medium text-foreground hover:bg-accent-soft focus:outline-none focus:ring-2 focus:ring-accent/35"
+                      role="menuitem"
+                    >
+                      {theme === 'dark' ? (
+                        <>
+                          <Moon className="h-3.5 w-3.5" />
+                          Dark
+                        </>
+                      ) : (
+                        <>
+                          <Sun className="h-3.5 w-3.5" />
+                          Light
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="mt-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Accent
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      {accentSwatches.map((s) => (
+                        <button
+                          key={s.accent}
+                          type="button"
+                          onClick={() => setAccent(s.accent)}
+                          className={cx(
+                            'relative grid h-8 w-8 place-items-center rounded-xl ring-1 ring-border/60',
+                            'hover:ring-accent/40 focus:outline-none focus:ring-2 focus:ring-accent/35',
+                            s.className
+                          )}
+                          title={s.accent}
+                          role="menuitem"
+                          aria-label={`Set accent to ${s.accent}`}
+                        >
+                          {accent === s.accent && (
+                            <Check className="h-4 w-4 text-white drop-shadow" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-border/60 p-2">
+                <button
+                  type="button"
+                  className="w-full rounded-xl px-3 py-2 text-left text-sm font-medium text-muted-foreground hover:bg-accent-soft hover:text-foreground"
+                  onClick={() => {
+                    clearSession();
+                    window.location.href = '/login';
+                  }}
+                  role="menuitem"
+                >
+                  Sign out
+                </button>
+              </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
